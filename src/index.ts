@@ -11,7 +11,8 @@ import ride from './models/ride.model';
 import RideState from './models/rideState.model';
 import Vehicle from './models/vehicle.model';
 import VehicleType from './models/vehicleType.model';
-import auth from './auth/auth';
+import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import { auth } from './auth/auth';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -22,28 +23,17 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
+// Mount express json middleware after Better Auth handler
+// or only apply it to routes that don't interact with Better Auth
+app.use(express.json());
+
 // --- Public routes ---
 app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to the React API Server!');
 });
 
-// --- Login (Basic Auth -> JWT) ---
-/**
- * Flow:
- *  - Client sends Authorization: Basic <base64 user:pass>
- *  - If valid, we mint a JWT and return it.
- */
-// app.post('/login', auth.authenticate('basic', { session: false }), (req: Request, res: Response) => {
-//   const user = req.user;
-//   if (user) {
-//     const token = auth.signToken(user.id);
-//     res.json({ token });
-//   } else {
-//     res.status(401).json({ message: 'Authentication failed' });
-//   }
-// });
-
-// Protect users endpoints (adjust as you prefer)
 app.get('/users', async (req, res) => {
   const users = await User.findAll();
   res.json(users);
@@ -388,8 +378,8 @@ app.get('/vehicles', async (req, res) => {
 */
 app.post('/vehicles', async (req, res) => {
   try {
-    const { make, model, year, typeId } = req.body;
-    const newVehicle = await Vehicle.create({ make, model, year, typeId });
+    const { make, model, year, vehicleTypeId } = req.body;
+    const newVehicle = await Vehicle.create({ make, model, year, vehicleTypeId });
     res.status(201).json(newVehicle);
   } catch (err: any) {
     console.error('SQL:', err?.original?.sql);
